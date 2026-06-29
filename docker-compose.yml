@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: helpdesk_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-helpdesk}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-helpdesk}
+      POSTGRES_DB: ${DB_NAME:-flutter_helpdesk}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-helpdesk} -d ${DB_NAME:-flutter_helpdesk}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: helpdesk_qdrant
+    restart: unless-stopped
+    ports:
+      - "6335:6333"   # REST API + UI (6333 ocupada por outro projeto)
+      - "6336:6334"   # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "true"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  minio:
+    image: minio/minio:latest
+    container_name: helpdesk_minio
+    restart: unless-stopped
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console web
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  postgres_data:
+    external: true
+    name: flutterhelpdeskgithub_nsx_postgres_data
+  qdrant_data:
+  minio_data:
